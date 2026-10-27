@@ -48,15 +48,15 @@ See [BACKTEST.md](BACKTEST.md) for the latest results.
 
 ## Live site
 
-https://raw.githack.com/acenasir/three-rule-tracker/gh-pages/index.html
+https://acenasir.github.io/three-rule-tracker/
 
-raw.githack.com serves the `gh-pages` branch for free with no account. It shows a one-time "Open the page" notice before the site. Add `#SYMBOL` to open a specific instrument, for example `#GC=F`.
+Add `#SYMBOL` to open a specific instrument, for example `#GC=F`. A backup link with no setup is https://raw.githack.com/acenasir/three-rule-tracker/gh-pages/index.html (it shows a one-time "Open the page" notice).
 
 ## Deploy
 
 The workflow in `.github/workflows/pages.yml` rebuilds the `gh-pages` branch every 30 minutes and on every push to `main`. You can also run it by hand from the Actions tab. Any static host can serve that branch:
 
-- **GitHub Pages:** Settings → Pages → Deploy from a branch → `gh-pages` / root. The site appears at https://acenasir.github.io/three-rule-tracker/.
+- **GitHub Pages (in use):** Settings → Pages → Deploy from a branch → `gh-pages` / root.
 - **Vercel:** import the repo; with no data files on `main`, the page reads live bars from `api/chart`.
 
 Scheduled runs can lag a few minutes, and GitHub pauses schedules on repos with no activity for 60 days.
