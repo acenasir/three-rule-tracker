@@ -424,7 +424,7 @@ function hideTip() { $("tip").hidden = true; if (state.hover != null) { state.ho
 function setStatus(msg, err) { const s = $("status"); s.textContent = msg; s.className = "status" + (err ? " err" : ""); }
 function srcLine() {
   const s = state.src[state.sym], d = state.data[state.sym];
-  return `Yahoo Finance daily bars, updated by GitHub Actions about every 30 minutes. Last update ${stamp(s.at)}, last bar ${day(d.bars[d.bars.length - 1].t)}, ${d.bars.length.toLocaleString()} sessions.`;
+  return `Yahoo Finance daily bars. Last update ${stamp(s.at)}, last bar ${day(d.bars[d.bars.length - 1].t)}, ${d.bars.length.toLocaleString()} sessions.`;
 }
 
 function render() {
@@ -434,10 +434,12 @@ function render() {
   setStatus(srcLine());
 }
 
-/* Data: data/bars/<symbol>.json, refreshed on a schedule by .github/workflows/pages.yml. */
+/* Data: data/bars/<symbol>.json (GitHub Pages, refreshed by .github/workflows/pages.yml) or api/chart (Vercel, live). */
 let busy = false, timer = null;
+// GitHub Pages serves data/bars/*.json from the scheduled workflow; Vercel has no data files and answers from api/chart instead.
 async function fetchLive(sym) {
-  const r = await fetch(`data/bars/${sym.replace(/[^A-Z0-9.-]/g, "_")}.json?t=${Math.floor(Date.now() / 60000)}`);
+  let r = await fetch(`data/bars/${sym.replace(/[^A-Z0-9.-]/g, "_")}.json?t=${Math.floor(Date.now() / 60000)}`);
+  if (r.status === 404) r = await fetch(`api/chart?symbol=${encodeURIComponent(sym)}&range=10y`);
   const j = await r.json().catch(() => ({ error: `Server returned HTTP ${r.status}` }));
   if (!r.ok) throw new Error(r.status === 404 ? `${sym} is not in the tracked list.` : j.error || `HTTP ${r.status}`);
   return { meta: j.meta, bars: j.bars.map(a => ({ t: a[0] * 1000, o: a[1], h: a[2], l: a[3], c: a[4] })), at: j.fetchedAt };
