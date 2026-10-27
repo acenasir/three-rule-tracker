@@ -4,15 +4,16 @@ const fs = require("fs"), path = require("path");
 const { parseYahoo, analyze, summarize } = require("../engine.js");
 
 const RANGE = process.argv[2] || "10y", COST = +(process.argv[3] || 5);
-const SYMBOLS = [
-  ["ES=F", "S&P 500 E-mini", "Futures"], ["NQ=F", "Nasdaq 100 E-mini", "Futures"], ["YM=F", "Dow E-mini", "Futures"],
-  ["RTY=F", "Russell 2000 E-mini", "Futures"], ["GC=F", "Gold", "Futures"], ["CL=F", "Crude oil", "Futures"],
-  ["ZN=F", "10-year T-note", "Futures"], ["SPY", "SPDR S&P 500", "ETF"], ["QQQ", "Invesco QQQ", "ETF"],
-  ["AAPL", "Apple", "Stock"], ["MSFT", "Microsoft", "Stock"], ["NVDA", "Nvidia", "Stock"], ["BTC-USD", "Bitcoin", "Crypto"],
-];
+const { SYMBOLS } = require("./symbols.js");
 const GRID = { rsiLo: [10, 15, 25], swing: [5, 10, 20], st: [5, 10, 20] };
 
+// Prefers the bars scripts/fetch-data.js already saved; falls back to Yahoo directly.
 async function load(sym) {
+  const local = path.join(__dirname, "..", "data", "bars", sym.replace(/[^A-Z0-9.-]/g, "_") + ".json");
+  if (fs.existsSync(local)) {
+    const j = JSON.parse(fs.readFileSync(local, "utf8"));
+    return { meta: j.meta, bars: j.bars.map(a => ({ t: a[0] * 1000, o: a[1], h: a[2], l: a[3], c: a[4] })) };
+  }
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=${RANGE}`;
   const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
   if (!res.ok) throw new Error(`${sym}: HTTP ${res.status}`);

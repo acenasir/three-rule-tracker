@@ -1,6 +1,6 @@
 # Three-Rule Tracker
 
-Live tracker and backtest for three trading rules credited to David Paul (MoneyShow, via a coingrams reel):
+Tracker and backtest for three trading rules credited to David Paul (MoneyShow, via a coingrams reel):
 
 1. **Take the trade that feels difficult.** Buy after hard down days (RSI(2) ≤ 15), sell after sharp rallies (RSI(2) ≥ 85).
 2. **Trade against the short-term trend when it conflicts with the long-term trend.** Buy when close > 200-day SMA and < 10-day SMA; sell when close < 200-day SMA and > 10-day SMA.
@@ -16,19 +16,25 @@ The thresholds are this project's interpretation of the rules, not the speaker's
 |---|---|
 | `index.html` | The tracker: today's verdict, rule checklist, price chart with rule strip, per-symbol backtest and equity curve |
 | `engine.js` | Rule engine and performance stats, shared by the page and the backtest script |
-| `api/chart.js` | Vercel function that proxies Yahoo Finance daily bars (`/api/chart?symbol=ES=F&range=10y`), cached 60 s at the edge |
+| `scripts/fetch-data.js` | Downloads 10 years of daily bars for each tracked symbol into `data/bars/` |
+| `scripts/symbols.js` | The tracked instruments; add a row to track another symbol |
+| `.github/workflows/pages.yml` | Every 30 minutes (and on push): fetch bars, rerun the backtest, publish to the `gh-pages` branch |
 | `scripts/backtest.js` | Runs the 13-instrument backtest and parameter grid, writes `BACKTEST.md` and `data/backtest.json` |
-| `scripts/dev.js` | Local server that serves the site and runs the API function |
+| `scripts/dev.js` | Local static server |
 
 ## Run locally
 
 Needs Node 18 or newer. No dependencies.
 
 ```bash
+npm run data
+```
+
+```bash
 npm run dev
 ```
 
-Then open http://localhost:3000.
+The first command downloads the data; the second serves the site at http://localhost:3000.
 
 ## Re-run the backtest
 
@@ -42,4 +48,4 @@ See [BACKTEST.md](BACKTEST.md) for the latest results.
 
 ## Deploy
 
-Push to `main`; Vercel builds the static site and the `api/` function with no configuration.
+The site is published on GitHub Pages at https://acenasir.github.io/three-rule-tracker/ from the `gh-pages` branch, which the workflow rebuilds. Push to `main`, or run the workflow by hand from the Actions tab, to republish. Scheduled runs can lag a few minutes, and GitHub pauses schedules on repos with no activity for 60 days.

@@ -140,9 +140,7 @@ tr.pick:hover td { background: var(--soft) }
   <div class="bar">
     <div class="chips" id="chips" role="group" aria-label="Instrument"></div>
     <div class="live">
-      <label class="eyebrow" for="sym">Any symbol</label>
-      <input id="sym" placeholder="e.g. ES=F, TSLA" autocomplete="off" spellcheck="false">
-      <button class="btn" id="liveBtn" type="button">Refresh live</button>
+      <button class="btn" id="liveBtn" type="button">Reload data</button>
     </div>
     <div class="status" id="status" aria-live="polite"></div>
   </div>
@@ -225,7 +223,7 @@ tr.pick:hover td { background: var(--soft) }
   </section>
 </div>
 
-<script src="/engine.js"></script>
+<script src="engine.js"></script>
 <script>
 const NAMES = { "ES=F": "S&P 500 E-mini", "NQ=F": "Nasdaq 100 E-mini", "YM=F": "Dow E-mini", "RTY=F": "Russell 2000 E-mini", "GC=F": "Gold", "CL=F": "Crude oil", "ZN=F": "10-year T-note",
   "SPY": "SPDR S&P 500 ETF", "QQQ": "Invesco QQQ", "AAPL": "Apple", "MSFT": "Microsoft", "NVDA": "Nvidia", "BTC-USD": "Bitcoin" };
@@ -426,7 +424,7 @@ function hideTip() { $("tip").hidden = true; if (state.hover != null) { state.ho
 function setStatus(msg, err) { const s = $("status"); s.textContent = msg; s.className = "status" + (err ? " err" : ""); }
 function srcLine() {
   const s = state.src[state.sym], d = state.data[state.sym];
-  return `Yahoo Finance daily bars via /api/chart, pulled ${stamp(s.at)}. Last bar ${day(d.bars[d.bars.length - 1].t)}, ${d.bars.length.toLocaleString()} sessions. Refreshes every minute while this tab is open.`;
+  return `Yahoo Finance daily bars, updated by GitHub Actions about every 30 minutes. Last update ${stamp(s.at)}, last bar ${day(d.bars[d.bars.length - 1].t)}, ${d.bars.length.toLocaleString()} sessions.`;
 }
 
 function render() {
@@ -436,12 +434,12 @@ function render() {
   setStatus(srcLine());
 }
 
-/* Live data: the site's own /api/chart function proxies Yahoo Finance (cached 60 s at the edge). */
+/* Data: data/bars/<symbol>.json, refreshed on a schedule by .github/workflows/pages.yml. */
 let busy = false, timer = null;
 async function fetchLive(sym) {
-  const r = await fetch(`/api/chart?symbol=${encodeURIComponent(sym)}&range=10y`);
+  const r = await fetch(`data/bars/${sym.replace(/[^A-Z0-9.-]/g, "_")}.json?t=${Math.floor(Date.now() / 60000)}`);
   const j = await r.json().catch(() => ({ error: `Server returned HTTP ${r.status}` }));
-  if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+  if (!r.ok) throw new Error(r.status === 404 ? `${sym} is not in the tracked list.` : j.error || `HTTP ${r.status}`);
   return { meta: j.meta, bars: j.bars.map(a => ({ t: a[0] * 1000, o: a[1], h: a[2], l: a[3], c: a[4] })), at: j.fetchedAt };
 }
 async function load(sym, quiet) {
@@ -452,18 +450,17 @@ async function load(sym, quiet) {
   try {
     const d = await fetchLive(sym);
     if (d.bars.length < 230) throw new Error(`${sym} has only ${d.bars.length} daily bars; the rules need at least 230.`);
-    state.data[sym] = d; state.src[sym] = { at: d.at }; state.sym = sym; $("sym").value = "";
+    state.data[sym] = d; state.src[sym] = { at: d.at }; state.sym = sym;
     try { history.replaceState(null, "", "#" + sym); } catch (e) {}
     render();
   } catch (e) {
     setStatus(`Could not load ${sym}: ${e.message}` + (state.data[state.sym] ? ` Still showing ${state.sym}.` : ""), true);
   } finally { busy = false; $("liveBtn").disabled = false; }
 }
-function goLive() { load($("sym").value.trim().toUpperCase() || state.sym); }
+function goLive() { load(state.sym); }
 $("liveBtn").onclick = goLive;
-$("sym").addEventListener("keydown", (e) => { if (e.key === "Enter") goLive(); });
-function schedule() { clearInterval(timer); timer = setInterval(() => { if (!document.hidden) load(state.sym, true); }, 60000); }
-document.addEventListener("visibilitychange", () => { if (!document.hidden && state.src[state.sym] && Date.now() - state.src[state.sym].at > 60000) load(state.sym, true); });
+function schedule() { clearInterval(timer); timer = setInterval(() => { if (!document.hidden) load(state.sym, true); }, 300000); }
+document.addEventListener("visibilitychange", () => { if (!document.hidden && state.src[state.sym] && Date.now() - state.src[state.sym].at > 1800000) load(state.sym, true); });
 
 /* Equity curve: rules vs buy and hold, log scale so decades compare fairly. */
 function drawEq() {
@@ -488,7 +485,7 @@ function drawEq() {
 
 /* Cross-instrument results from scripts/backtest.js (data/backtest.json). */
 async function loadAll() {
-  try { const r = await fetch("/data/backtest.json"); if (!r.ok) throw 0; state.bt = await r.json(); allTable(); }
+  try { const r = await fetch("data/backtest.json?t=" + Math.floor(Date.now() / 60000)); if (!r.ok) throw 0; state.bt = await r.json(); allTable(); }
   catch (e) { $("allPanel").hidden = true; }
 }
 function allTable() {
